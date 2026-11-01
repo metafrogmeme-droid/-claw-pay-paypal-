@@ -11,6 +11,7 @@
   "include": [
     "packages/*/src/**/*",
     "packages/*/test/**/*",
+    "test-setup/**/*",
     "scripts/**/*.mjs",
     "*.config.ts",
     "eslint.config.js"

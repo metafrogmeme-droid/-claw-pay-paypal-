@@ -17,3 +17,10 @@ export {
 export { MockPaypal, PaypalApiError, type PaypalClient, type PaypalOrder } from './client.js';
 export { PaypalGate, type GateOptions, type GateResult } from './gate.js';
 export { loadPaypalRules, type PaypalRulesFile } from './rules-file.js';
+export {
+  SandboxPaypalClient,
+  ordersV2Body,
+  sandboxClientFromEnv,
+  type FetchLike,
+  type SandboxClientOptions,
+} from './sandbox-client.js';

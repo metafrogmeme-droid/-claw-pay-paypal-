@@ -208,7 +208,8 @@ describe('PaypalGate', () => {
     const created = await gate.call('create_order', order(2));
     const r = await gate.call('pay_order', { id: created.orderId }); // buyer has not approved
     expect(r).toMatchObject({ outcome: 'ALLOWED', paypalError: 'ORDER_NOT_APPROVED' });
-    expect(mock.calls.filter((c) => c.method === 'captureOrder')).toHaveLength(1);
+    // The get_order re-check catches it, so the capture is never sent (gate-capture.test.ts).
+    expect(mock.calls.filter((c) => c.method === 'captureOrder')).toHaveLength(0);
     mock.failNext('INTERNAL_SERVER_ERROR');
     const failed = await gate.call('create_order', order(2));
     expect(failed).toMatchObject({ outcome: 'ALLOWED', paypalError: 'INTERNAL_SERVER_ERROR' });

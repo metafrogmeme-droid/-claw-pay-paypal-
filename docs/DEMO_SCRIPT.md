@@ -28,7 +28,7 @@ Then, on fresh gates and counted separately:
 - **pause:** the guardian pauses → `PAUSED`; the guardian can't unpause; the owner unpauses → the next call is allowed.
 - **keys:** the agent asks for `get_credentials`, `update_rules` or `unpause` → all `ACTION_NOT_ALLOWED`. In mock
   mode this checks the agent's only door (`gate.call`). The process-level test (the agent process can't read
-  `PAYPAL_CLIENT_SECRET`) comes with the MCP server in P3.
+  `PAYPAL_SANDBOX_CLIENT_SECRET`) comes with the MCP server in P3.
 
 Last line:
 

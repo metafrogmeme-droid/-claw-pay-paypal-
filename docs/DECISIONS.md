@@ -21,7 +21,8 @@ One short entry per design choice. **Status** is *Decided* (built or binding) or
 - **Copyright line:** "Copyright (c) 2026 Patrick Baur (RUNECLAW)".
 
 ## D-002 PayPal integration: the Agent Toolkit as a library inside the gate, not the `@paypal/mcp` server
-- **Status:** Planned (the sandbox client and agent side are the next milestone).
+- **Status:** Superseded for the money path by D-023: the gate calls PayPal through its own Orders v2 REST
+  client and keeps the toolkit's tool names and argument shapes.
 - **Options:**
   1. The gate spawns `npx @paypal/mcp` (S2) and forwards MCP calls to it.
   2. The gate imports `@paypal/agent-toolkit` (S1) in-process and calls only the tools that pass `core.decide`.
@@ -42,7 +43,7 @@ One short entry per design choice. **Status** is *Decided* (built or binding) or
 - **Revisit if** we want the remote commerce tools. Those only exist on the remote server.
 
 ## D-003 Agent side: the AI SDK through our own MCP server, not the toolkit's AI SDK tools
-- **Status:** Planned (the sandbox client and agent side are the next milestone).
+- **Status:** Planned (P3). Today the LLM agent (D-025) calls `gate.call()` in the same process; see THREAT_MODEL T26.
 - **Options:**
   1. The LLM agent uses `PayPalAgentToolkit` from `@paypal/agent-toolkit/ai-sdk` directly.
   2. The LLM agent is an MCP client of **our** Claw Pay MCP server, which exposes the same tool names.
@@ -55,7 +56,7 @@ One short entry per design choice. **Status** is *Decided* (built or binding) or
 - **Cost / risk:**
   - The toolkit's AI SDK entry is built for AI SDK v4 (`LanguageModelV1`, `ai@^4`, S1). Which AI SDK major and
     model the agent uses is still open, so that pin waits.
-  - "The project uses the PayPal Agent Toolkit" stays true: the gate runs it (D-002).
+  - The toolkit's tool names and argument shapes stay the interface; the runtime client is our own (D-023).
 
 ## D-004 Sandbox enforcement: hosts on an allowlist, `context.sandbox` forced on
 - **Status:** Decided.
@@ -245,3 +246,49 @@ One short entry per design choice. **Status** is *Decided* (built or binding) or
 - **Why not `@x402/core` for parsing:** our parser is small (about 200 lines), dependency-free apart from zod, and
   every rule above is ours to test and fuzz. `@x402/core` (2.29.0) stays the candidate for **signing** in M3,
   where reusing the official implementation matters more.
+
+## D-023 PayPal sandbox calls: a thin Orders v2 REST client, not the toolkit runtime
+- **Status:** Decided (built; one live sandbox run end to end on 1 Nov 2026).
+- **What:** `SandboxPaypalClient` (`packages/paypal/src/sandbox-client.ts`) calls exactly four endpoints:
+  `POST /v1/oauth2/token`, `POST /v2/checkout/orders`, `GET /v2/checkout/orders/{id}`,
+  `POST /v2/checkout/orders/{id}/capture`. Same paths and body shape the toolkit's `create_order`,
+  `get_order` and `pay_order` send, so the tool names and the action allowlist stay the same.
+- **Why not `@paypal/agent-toolkit` 1.11.0 at run time (supersedes D-002 for the money path):**
+  - It uses axios internally, so we can't inject a transport. With our own `fetch` hook, every request URL is
+    checked against the sandbox host allowlist, and CI tests run on recorded replies with no network.
+  - `PayPalAPI.run()` turns PayPal errors into a JSON string, which loses the `ORDER_NOT_APPROVED` code we need.
+  - It totals amounts in floats. We build every amount string from bigint minor units.
+  - It pulls in about a dozen runtime packages (AI SDK v4, LangChain, OpenAI, mathjs, `@dotenvx/dotenvx`, ...)
+    for four HTTP calls.
+  - The sandbox switch defaults to LIVE. Here the base URL can only be a sandbox host; there is no live setting.
+- **Idempotency:** a fresh `PayPal-Request-Id` per create and a fixed `claw-pay-capture-<order id>` per capture.
+- **Kept:** `toolkitConfiguration()` (always `sandbox: true`) stays for a later MCP/toolkit path, still tested.
+
+## D-024 PayPal env names: `PAYPAL_SANDBOX_CLIENT_ID` / `PAYPAL_SANDBOX_CLIENT_SECRET`
+- **Status:** Decided.
+- **What:** `.env.example` uses the sandbox-prefixed names, plus
+  `PAYPAL_SANDBOX_PAYEE_MERCHANT_ID`, the payee the gate expects on `get_order` before a capture.
+  `PAYPAL_ENVIRONMENT=SANDBOX` is still required. The gitleaks PayPal rule already matched both names; the
+  self-test now plants the sandbox name too.
+
+## D-025 LLM shopping agent: Flovia by default, Anthropic opt-in, a hard spend guard
+- **Status:** Decided (built; the limits below are defaults you can lower in `.env`).
+- **What:** `packages/agent`. The model gets the task and the (untrusted) page text and answers with
+  `{"intents":[{tool,args,why?}]}`, at most 5. Each intent goes to `gate.call()`; the agent has no other handle.
+  Off unless `ENABLE_LLM_AGENT=yes`.
+- **Providers:** Flovia through its OpenAI Responses API, `POST https://api.flovia.dev/openai/v1/responses`
+  (`FLOVIA_API_KEY`; `FLOVIA_BASE_URL` and `FLOVIA_MODEL` default to that base URL and `gpt-6-luna`). The relay
+  does not serve `/chat/completions` (404, found in the first live test). Each call sends a `Flovia-Operation-Id`
+  `claw-pay:<run id>:<call n>`; we never retry, so every call is a new generation with a new id. The relay takes one
+  text input, so system prompt and task are joined. A reply with status `incomplete` (or Anthropic `stop_reason`
+  `max_tokens`) is logged and counted, then refused. Used unless `LLM_PROVIDER=anthropic`, then Anthropic Messages (`ANTHROPIC_API_KEY`, cheap model
+  `claude-haiku-5-5` by default). A missing variable is an error. There is never a fallback to the other provider,
+  so the paid key is used only when you pick it.
+- **Spend guard (both providers):** `max_tokens` 512 (hard cap 1024), per-run cap 0.05 USD checked against the
+  worst case BEFORE each call, 3 calls per run, hard stop flag (`LLM_HARD_STOP=yes` or `.claw-pay/LLM_STOP`) read
+  before every call, JSONL spend log (counts and nano-USD costs, no prompts, no keys). Flovia counts as 0 USD.
+- **CI:** no LLM or network calls. The global `fetch` rejects in every test; providers take an injected fetch;
+  replies are recorded, scrubbed fixtures.
+- **Checked live (1 Nov 2026):** Flovia `gpt-6-luna` (the only model `/models` lists) and Anthropic
+  `claude-haiku-5-5` (in `/v1/models`, one Messages call). Haiku 5.5 price per anthropic.com/pricing on 1 Nov 2026:
+  0.10 / 0.50 USD per million input / output tokens for prompts up to 100K tokens (the higher tier is not modelled).

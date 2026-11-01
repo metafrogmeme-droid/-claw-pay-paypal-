@@ -6,7 +6,10 @@
   "type": "module",
   "bin": {
     "cp-keys": "./dist/bin/cp-keys.js",
-    "cp-demo-paypal": "./dist/bin/cp-demo-paypal.js"
+    "cp-demo-paypal": "./dist/bin/cp-demo-paypal.js",
+    "cp-sandbox-smoke": "./dist/bin/cp-sandbox-smoke.js",
+    "cp-agent": "./dist/bin/cp-agent.js",
+    "cp-sandbox-resume": "./dist/bin/cp-sandbox-resume.js"
   },
   "exports": {
     ".": {
@@ -18,6 +21,7 @@
     "build": "tsc -p tsconfig.build.json"
   },
   "dependencies": {
+    "@claw-pay/agent": "workspace:*",
     "@claw-pay/core": "workspace:*",
     "@claw-pay/paypal": "workspace:*",
     "viem": "2.57.13"

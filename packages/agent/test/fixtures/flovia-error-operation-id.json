@@ -1,0 +1,7 @@
+{
+  "error": {
+    "type": "flovia_error",
+    "code": "invalid_operation_id",
+    "message": "Send the Flovia-Operation-Id header: 8-128 characters of A-Z a-z 0-9 _ . : -. Save it before sending and reuse the same ID for every retry of this generation."
+  }
+}

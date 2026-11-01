@@ -1,0 +1,8 @@
+{
+  "scope": "https://uri.paypal.com/services/payments/payment",
+  "access_token": "fake-access-token-for-tests",
+  "token_type": "Bearer",
+  "app_id": "APP-FAKE0000000000",
+  "expires_in": 32400,
+  "nonce": "fake-nonce"
+}

@@ -1,0 +1,7 @@
+{
+  "error": {
+    "type": "flovia_error",
+    "code": "request_blocked",
+    "message": "This request cannot be processed. Nothing was generated or charged."
+  }
+}

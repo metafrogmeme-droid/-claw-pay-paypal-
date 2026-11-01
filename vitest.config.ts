@@ -13,7 +13,8 @@ export default defineConfig({
   },
   test: {
     include: ['packages/*/test/**/*.test.ts', 'scripts/**/*.test.mjs'],
-    // CI rule: no network. Tests that need a server use loopback only.
+    // CI rule: no network. Tests that need a server use loopback only; the global fetch always rejects.
+    setupFiles: ['./test-setup/no-network.ts'],
     restoreMocks: true,
     coverage: {
       provider: 'v8',

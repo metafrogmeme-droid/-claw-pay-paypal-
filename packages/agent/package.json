@@ -1,0 +1,21 @@
+{
+  "name": "@claw-pay/agent",
+  "version": "0.0.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "description": "Claw Pay LLM shopping agent: proposes payment intents; every intent goes through the PayPal gate.",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json"
+  },
+  "dependencies": {
+    "@claw-pay/paypal": "workspace:*",
+    "zod": "4.6.7"
+  }
+}

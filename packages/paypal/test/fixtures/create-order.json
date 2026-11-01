@@ -1,0 +1,33 @@
+{
+  "id": "FAKEORDER00000001",
+  "intent": "CAPTURE",
+  "status": "PAYER_ACTION_REQUIRED",
+  "payment_source": {
+    "paypal": {}
+  },
+  "purchase_units": [
+    {
+      "reference_id": "default",
+      "amount": {
+        "currency_code": "USD",
+        "value": "2.00"
+      },
+      "payee": {
+        "email_address": "seller-a@business.example.com",
+        "merchant_id": "FAKEMERCHANT01"
+      }
+    }
+  ],
+  "links": [
+    {
+      "href": "https://api.sandbox.paypal.com/v2/checkout/orders/FAKEORDER00000001",
+      "rel": "self",
+      "method": "GET"
+    },
+    {
+      "href": "https://www.sandbox.paypal.com/checkoutnow?token=FAKEORDER00000001",
+      "rel": "payer-action",
+      "method": "GET"
+    }
+  ]
+}

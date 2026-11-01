@@ -94,7 +94,7 @@ describe('toMinorUnits / formatMinor', () => {
   });
 });
 
-describe('sandbox guard (hard rule §7.1)', () => {
+describe('sandbox guard (hard rule)', () => {
   it('accepts only PAYPAL_ENVIRONMENT=SANDBOX exactly', () => {
     expect(() => {
       assertSandboxEnv({ PAYPAL_ENVIRONMENT: 'SANDBOX' });

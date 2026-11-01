@@ -1,0 +1,13 @@
+{
+  "id": "msg_fake0001",
+  "type": "message",
+  "role": "assistant",
+  "model": "claude-haiku-5-5",
+  "content": [
+    { "type": "text", "text": "{\"intents\":" },
+    { "type": "tool_use", "id": "toolu_fake", "name": "x", "input": {} },
+    { "type": "text", "text": "[]}" }
+  ],
+  "stop_reason": "end_turn",
+  "usage": { "input_tokens": 400, "output_tokens": 10 }
+}

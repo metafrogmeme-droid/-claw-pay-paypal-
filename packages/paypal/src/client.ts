@@ -1,12 +1,18 @@
 // The PayPal calls the gate makes, and a mock that counts them (CI and judges' mock mode).
+import { ordersV2Body } from './sandbox-client.js';
 
 export interface PaypalOrder {
   readonly id: string;
   readonly status: string;
   readonly payerActionUrl?: string;
+  /** `purchase_units[0].payee.merchant_id`, when PayPal returns it (create and get_order in sandbox do). */
+  readonly payeeMerchantId?: string;
+  /** Order amount (or capture amount) in minor units. */
+  readonly amount?: { readonly currency: string; readonly minor: bigint };
+  readonly captureId?: string;
 }
 
-/** The only PayPal operations the gate performs. The sandbox implementation wraps the Agent Toolkit (P4). */
+/** The only PayPal operations the gate performs. `SandboxPaypalClient` is the real one (D-023). */
 export interface PaypalClient {
   createOrder(args: Readonly<Record<string, unknown>>): Promise<PaypalOrder>;
   getOrder(id: string): Promise<PaypalOrder>;
@@ -29,8 +35,20 @@ type Method = 'createOrder' | 'getOrder' | 'captureOrder';
 export class MockPaypal implements PaypalClient {
   readonly calls: { readonly method: Method; readonly args: unknown }[] = [];
   readonly #status = new Map<string, string>();
+  readonly #details = new Map<string, Pick<PaypalOrder, 'payeeMerchantId' | 'amount'>>();
   #next = 0;
   #failure: string | undefined;
+
+  /** `payee` is the merchant id the mock reports on get_order (the demo's seller-a by default). */
+  constructor(private readonly payee = 'SELLERAMERCHANT01') {}
+
+  /** Test hook: make get_order report a different payee (e.g. the order was changed on PayPal's side). */
+  setPayee(id: string, merchantId: string | undefined): void {
+    const d = this.#details.get(id);
+    if (!d) return;
+    const { payeeMerchantId: _old, ...rest } = d;
+    this.#details.set(id, merchantId === undefined ? rest : { ...rest, payeeMerchantId: merchantId });
+  }
 
   approve(id: string): void {
     if (this.#status.get(id) === 'PAYER_ACTION_REQUIRED') this.#status.set(id, 'APPROVED');
@@ -51,6 +69,7 @@ export class MockPaypal implements PaypalClient {
     this.#record('createOrder', args);
     const id = `MOCK${String(++this.#next).padStart(13, '0')}`;
     this.#status.set(id, 'PAYER_ACTION_REQUIRED');
+    this.#details.set(id, { payeeMerchantId: this.payee, ...mockAmount(args) });
     // Same link host as a real sandbox order's payer-action link.
     return Promise.resolve({
       id,
@@ -64,7 +83,7 @@ export class MockPaypal implements PaypalClient {
     const status = this.#status.get(id);
     return status === undefined
       ? Promise.reject(new PaypalApiError('RESOURCE_NOT_FOUND'))
-      : Promise.resolve({ id, status });
+      : Promise.resolve({ id, status, ...this.#details.get(id) });
   }
 
   captureOrder(id: string): Promise<PaypalOrder> {
@@ -72,5 +91,18 @@ export class MockPaypal implements PaypalClient {
     if (this.#status.get(id) !== 'APPROVED') return Promise.reject(new PaypalApiError('ORDER_NOT_APPROVED'));
     this.#status.set(id, 'COMPLETED');
     return Promise.resolve({ id, status: 'COMPLETED' });
+  }
+}
+
+/** The order total the mock reports, built the same way the sandbox client builds the request body. */
+function mockAmount(args: Readonly<Record<string, unknown>>): Pick<PaypalOrder, 'amount'> {
+  try {
+    const [unit] = ordersV2Body(args)['purchase_units'] as [
+      { amount: { currency_code: string; value: string } },
+    ];
+    const minor = BigInt(unit.amount.value.replace('.', '')); // formatMinor output: always "<int>.<2 digits>"
+    return { amount: { currency: unit.amount.currency_code, minor } };
+  } catch {
+    return {};
   }
 }

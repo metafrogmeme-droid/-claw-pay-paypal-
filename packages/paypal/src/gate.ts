@@ -1,5 +1,6 @@
 // In-process PayPal gate: normalise → core.decide → only then PayPal (D-021).
-// A blocked call makes zero PayPal calls. pay_order works only for orders this gate created, once per order id.
+// A blocked call makes zero PayPal calls. pay_order works only for orders this gate created, once per order id,
+// and only after get_order shows APPROVED with the payee and amount the gate decided on.
 import {
   decide,
   decode,
@@ -43,6 +44,8 @@ export interface GateOptions {
 function fromDecision(d: Pick<Decision, 'outcome' | 'reason' | 'verdict'>): GateResult {
   return { outcome: d.outcome, reason: d.reason, verdict: d.verdict };
 }
+/** PayPal order ids are short upper-case alphanumerics (17 chars today). */
+const ORDER_ID = /^[A-Z0-9]{8,36}$/;
 const errorCode = (e: unknown): string => (e instanceof PaypalApiError ? e.code : 'PAYPAL_CALL_FAILED');
 const orderFields = (o: PaypalOrder): Partial<GateResult> => ({
   orderId: o.id,
@@ -76,6 +79,28 @@ export class PaypalGate {
     const r = unpause(this.#state, by);
     if (r.ok) this.#state = r.state;
     return r.ok;
+  }
+
+  /**
+   * Owner only, not reachable through call(). After a restart, re-attach a sandbox order that an earlier gate run
+   * created, so pay_order can capture it. `createArgs` are the create_order args the owner expects (same amount,
+   * same payee rules). The intent must still be ALLOWED under these rules; then pay_order re-checks on PayPal
+   * (APPROVED, pinned payee, this amount) before any capture. Makes no PayPal call itself.
+   */
+  adoptOrder(orderId: string, createArgs: unknown): GateResult {
+    if (!ORDER_ID.test(orderId)) return blocked('REQUIREMENTS_UNREADABLE');
+    const now = this.#o.clock();
+    const n = normalise('create_order', createArgs, this.#o.config, now);
+    if (n.kind !== 'payment') return blocked('REQUIREMENTS_UNREADABLE');
+    const ok = fromDecision({ outcome: 'ALLOWED', reason: 'OK', verdict: decode('OK') });
+    if (this.#orders.has(orderId)) return { ...ok, orderId };
+    const d = decide(n.intent, this.#o.rules, this.#state, now);
+    if (d.outcome !== 'ALLOWED') return fromDecision(d);
+    this.#state = recordPayment(this.#state, n.intent, now);
+    this.#orders.set(orderId, { intent: n.intent });
+    const result = { ...fromDecision(d), orderId };
+    this.log.push({ tool: 'adopt_order (owner)', result });
+    return result;
   }
 
   /** The agent's only entry point. */
@@ -136,6 +161,23 @@ export class PaypalGate {
     if (!rec) return blocked('REQUIREMENTS_UNREADABLE');
     if (rec.capture) return rec.capture; // idempotent per order id: no second PayPal call
     const ok = fromDecision({ outcome: 'ALLOWED', reason: 'OK', verdict: decode('OK') });
+    // Re-check on PayPal's side first. A failed pre-check is not cached: the buyer may approve later.
+    let current: PaypalOrder;
+    try {
+      current = await this.#o.client.getOrder(orderId);
+    } catch (e) {
+      return { ...ok, orderId, paypalError: errorCode(e) };
+    }
+    if (current.status !== 'APPROVED') {
+      return { ...ok, orderId, status: current.status, paypalError: 'ORDER_NOT_APPROVED' };
+    }
+    const { intent } = rec;
+    if (current.payeeMerchantId === undefined || current.payeeMerchantId !== intent.payTo) {
+      return { ...blocked('PAYTO_MISMATCH'), orderId };
+    }
+    if (current.amount?.currency !== intent.asset || current.amount.minor !== intent.amount) {
+      return { ...blocked('REQUIREMENTS_UNREADABLE'), orderId };
+    }
     try {
       const o = await this.#o.client.captureOrder(orderId);
       rec.capture = { ...ok, ...orderFields(o) };

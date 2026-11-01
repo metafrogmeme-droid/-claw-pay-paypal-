@@ -17,3 +17,9 @@ This file records the architecture **as built**, milestone by milestone.
   door: normalise → `decide()` → only then the `PaypalClient`. `MockPaypal` counts every call, so "blocked → 0
   PayPal calls" is tested. `assertSandboxEnv()`, `assertAllowedHost()` and `toolkitConfiguration()` keep the
   adapter on sandbox. `cp-demo-paypal` runs the 12-call demo in `docs/DEMO_SCRIPT.md` in mock mode.
+- **P2 (sandbox + agent):** `SandboxPaypalClient` in `packages/paypal` calls four Orders v2 REST endpoints (token,
+  create, get, capture) on sandbox hosts only (D-023). `pay_order` runs `get_order` first and captures only when the
+  order is `APPROVED` with the pinned payee and the decided amount. `adoptOrder()` lets the owner resume an approved
+  order after a restart. `packages/agent` is the LLM shopping agent (D-025): the model returns JSON intents, each goes
+  through `gate.call()`, and a spend guard caps tokens, calls and USD per run. CLIs: `cp-agent`, `cp-sandbox-smoke`,
+  `cp-sandbox-resume`.

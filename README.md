@@ -21,8 +21,9 @@ Work in progress. What is in this repo today:
 | Rule core (`packages/core`): `decide()`, reason codes, verdict text | built, unit- and property-tested |
 | PayPal gate (`packages/paypal`): strict normaliser, payee pinning, caps, sandbox guard | built and tested against a mock PayPal client |
 | `make demo-paypal`: 12 scripted agent calls in mock mode | built, runs in CI |
-| Sandbox PayPal client wrapping the PayPal Agent Toolkit | next milestone |
-| LLM agent (behind `ENABLE_LLM_AGENT`, off by default) | next milestone |
+| Sandbox PayPal client (`packages/paypal`): a thin Orders v2 REST client, sandbox hosts only | built, tested on recorded replies; one live sandbox run end to end (create, buyer approval, `get_order` re-check, capture) |
+| LLM shopping agent (`packages/agent`, behind `ENABLE_LLM_AGENT`, off by default): proposes calls, never approves them; spend cap and hard stop | built, tested on recorded replies; live runs with Flovia (default) and Anthropic (opt-in) |
+| `make sandbox-smoke`, `make sandbox-resume`, `make agent` | built and tested |
 | x402 parser (`packages/x402`), testnet key tool (`cp-keys`) | built and tested |
 
 ## What it checks
@@ -36,13 +37,14 @@ Work in progress. What is in this repo today:
 - **Confirm threshold** → `NEEDS_OWNER_OK`. Owner approval clears only a needs-OK step, never a block.
 - **Strict input.** Unknown fields, more than 2 decimals, tax that needs a fraction of a cent, or an `itemTotal`
   that doesn't match the price → `REQUIREMENTS_UNREADABLE`. Amounts become integer cents before any float maths.
-- **Captures** (`pay_order`) only for orders the gate created, at most once per order id. A PayPal error is
+- **Captures** (`pay_order`) only for orders the gate created, at most once per order id, and only after
+  `get_order` shows `APPROVED` with the payee and amount the gate decided on. A PayPal error is
   reported once and never retried. Pause and unpause are gate methods, not tools the agent can call.
 
 ## Sandbox only
 - `PAYPAL_ENVIRONMENT` must be exactly `SANDBOX`, otherwise `ERR_PRODUCTION_REFUSED`.
 - The PayPal Agent Toolkit defaults to live, so the toolkit configuration Claw Pay builds always sets
-  `context.sandbox: true`.
+  `context.sandbox: true`. The REST client Claw Pay uses today refuses any non-sandbox host on every request.
 - Outbound hosts are an allowlist: `api-m.sandbox.paypal.com` and `api.sandbox.paypal.com` (https, default port).
   `api-m.paypal.com`, `api.paypal.com` and `mcp.paypal.com` are refused by name in tests. There is no override.
 - Tool argument names follow `@paypal/agent-toolkit` 1.11.0 (Orders v2: `create_order`, `get_order`,
@@ -66,18 +68,31 @@ The 12 scripted agent calls and their expected verdicts are in [`docs/DEMO_SCRIP
 Edit [`demo/paypal/rules.json`](demo/paypal/rules.json) (caps, threshold, allowed tools) and run it again to see
 the verdicts change; the demo exits non-zero when the results no longer match the table.
 
-## Sandbox setup with **your own** PayPal sandbox app
-Credentials are never shared. You use your own free sandbox app. *(The sandbox run command lands with the
-sandbox client in the next milestone; these are the setup steps.)*
+## Sandbox mode with **your own** PayPal sandbox app
+Credentials are never shared. You use your own free sandbox app.
 
 1. Log in at the PayPal Developer Dashboard → **Apps & Credentials** → toggle **Sandbox** → **Create App**
    (type Merchant, linked to your default sandbox **Business** account).
-2. Copy `.env.example` to `.env` and fill in `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET` and
+2. Copy `.env.example` to `.env` and fill in `PAYPAL_SANDBOX_CLIENT_ID`, `PAYPAL_SANDBOX_CLIENT_SECRET` and
    `PAYPAL_ENVIRONMENT=SANDBOX`. `.env` is git-ignored. Never paste these anywhere else.
 3. **Testing Tools → Sandbox Accounts**: put your sandbox Business account's merchant id into
-   `demo/paypal/rules.json` (`sellers[0].merchantId`), and note your sandbox **Personal** (buyer) login.
-4. Each new order needs a buyer approval: open its `payer-action` link in a private window and log in as your
-   sandbox **Personal** account (logging in as the Business account that receives the money is refused by PayPal).
+   `PAYPAL_SANDBOX_PAYEE_MERCHANT_ID`, and note your sandbox **Personal** (buyer) login.
+4. Load the variables into your shell and run `make sandbox-smoke`. It creates ONE 2.00 USD order through the gate
+   and stops at `PAYER_ACTION_REQUIRED`, printing the order id and the `payer-action` link. Open the link in a
+   private window and log in as your sandbox **Personal** account (logging in as the Business account that
+   receives the money is refused by PayPal). To capture too, run it with `CP_SMOKE_WAIT_MINUTES=5`: it polls
+   `get_order`, and only when the order is `APPROVED` with your payee and the same amount does it send the capture.
+5. Approved later, or in another run (also after `make agent ARGS=--sandbox`, which prints this command)? Run
+   `make sandbox-resume ARGS="<order id> --amount 2.00"`. This is an owner command, not an agent tool. It re-attaches
+   the order to a fresh gate (your rules must still allow that amount), re-checks it with `get_order` (`APPROVED`,
+   your payee, same amount) and only then sends one capture. If the buyer has not approved yet, nothing is sent.
+
+## LLM agent (optional, off by default)
+`make agent` runs one LLM shopping-agent turn against the **mock** PayPal; `make agent ARGS=--inject` adds the
+row 7 injected page text; `ARGS=--sandbox` uses your sandbox app. Set `ENABLE_LLM_AGENT=yes` and either
+`FLOVIA_API_KEY` (default; base URL and model default to `https://api.flovia.dev/openai/v1` and `gpt-6-luna`) or
+`LLM_PROVIDER=anthropic` with `ANTHROPIC_API_KEY`. Each run prints its run id and what the model proposed. The
+model proposes; the gate decides. Limits and the hard stop are in [`.env.example`](.env.example).
 
 ## Developers
 Needs gitleaks for the pre-commit hook: `go install github.com/zricethezav/gitleaks/v8@v8.30.1` (same version
@@ -105,18 +120,20 @@ prints **addresses only**. Any chain id that isn't a known testnet is refused (`
 | Path | What |
 |---|---|
 | `packages/core` | rule core: `decide()`, reason codes, `decode()` |
-| `packages/paypal` | PayPal gate, normaliser, sandbox guard, mock client, rules file loader |
+| `packages/paypal` | PayPal gate, normaliser, sandbox guard, sandbox REST client, mock client, rules file loader |
+| `packages/agent` | LLM shopping agent: Flovia and Anthropic providers, spend guard |
 | `packages/x402` | fail-closed x402 parsers |
-| `packages/cli` | `cp-keys`, `cp-demo-paypal` |
+| `packages/cli` | `cp-keys`, `cp-demo-paypal`, `cp-agent`, `cp-sandbox-smoke`, `cp-sandbox-resume` |
 | `demo/paypal` | demo rules |
 | `scripts/` | copy-lint, gitleaks self-test, docs checks |
 | `docs/` | [architecture](docs/ARCHITECTURE.md), [decisions](docs/DECISIONS.md), [threat model](docs/THREAT_MODEL.md), [demo script](docs/DEMO_SCRIPT.md) |
 
 ## AI and PayPal tools used
-- **PayPal:** Orders v2 (create, get, capture) through the tool names and argument shapes of the PayPal Agent
-  Toolkit (`@paypal/agent-toolkit`), sandbox only.
-- **AI:** an LLM agent proposes tool calls (next milestone, behind `ENABLE_LLM_AGENT`, off by default). CI and the
-  mock demo use a scripted agent and make no LLM calls.
+- **PayPal Orders v2 REST API** (sandbox only): create, get, capture, called by Claw Pay's own small client
+  (D-023). The PayPal Agent Toolkit's tool names and argument shapes (`@paypal/agent-toolkit` 1.11.0) are kept;
+  the toolkit package itself is not a dependency.
+- **AI:** an LLM agent proposes tool calls (behind `ENABLE_LLM_AGENT`, off by default): Flovia by default, Anthropic
+  only when chosen. CI and the mock demo use a scripted agent and make no LLM calls.
 
 ## Licence
 MIT. See [`LICENSE`](LICENSE).

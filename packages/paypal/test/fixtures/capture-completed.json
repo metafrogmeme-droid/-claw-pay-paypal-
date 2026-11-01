@@ -1,0 +1,112 @@
+{
+  "id": "FAKEORDER00000001",
+  "status": "COMPLETED",
+  "payment_source": {
+    "paypal": {
+      "email_address": "buyer@personal.example.com",
+      "account_id": "FAKEPAYER0001",
+      "account_status": "VERIFIED",
+      "name": {
+        "given_name": "Test",
+        "surname": "Buyer"
+      },
+      "address": {
+        "country_code": "NL"
+      }
+    }
+  },
+  "purchase_units": [
+    {
+      "reference_id": "default",
+      "shipping": {
+        "name": {
+          "full_name": "Test Buyer"
+        },
+        "address": {
+          "address_line_1": "1 Example Street",
+          "admin_area_2": "Example City",
+          "admin_area_1": "EX",
+          "postal_code": "0000 XX",
+          "country_code": "NL"
+        }
+      },
+      "payments": {
+        "captures": [
+          {
+            "id": "FAKECAPTURE000001",
+            "status": "COMPLETED",
+            "amount": {
+              "currency_code": "USD",
+              "value": "2.00"
+            },
+            "final_capture": true,
+            "seller_protection": {
+              "status": "ELIGIBLE",
+              "dispute_categories": ["ITEM_NOT_RECEIVED", "UNAUTHORIZED_TRANSACTION"]
+            },
+            "seller_receivable_breakdown": {
+              "gross_amount": {
+                "currency_code": "USD",
+                "value": "2.00"
+              },
+              "paypal_fee": {
+                "currency_code": "USD",
+                "value": "0.37"
+              },
+              "net_amount": {
+                "currency_code": "USD",
+                "value": "1.63"
+              },
+              "receivable_amount": {
+                "currency_code": "EUR",
+                "value": "1.41"
+              },
+              "exchange_rate": {
+                "source_currency": "USD",
+                "target_currency": "EUR",
+                "value": "0.8661374926425"
+              }
+            },
+            "links": [
+              {
+                "href": "https://api.sandbox.paypal.com/v2/payments/captures/FAKECAPTURE000001",
+                "rel": "self",
+                "method": "GET"
+              },
+              {
+                "href": "https://api.sandbox.paypal.com/v2/payments/captures/FAKECAPTURE000001/refund",
+                "rel": "refund",
+                "method": "POST"
+              },
+              {
+                "href": "https://api.sandbox.paypal.com/v2/checkout/orders/FAKEORDER00000001",
+                "rel": "up",
+                "method": "GET"
+              }
+            ],
+            "create_time": "2026-11-01T07:29:44Z",
+            "update_time": "2026-11-01T07:29:44Z"
+          }
+        ]
+      }
+    }
+  ],
+  "payer": {
+    "name": {
+      "given_name": "Test",
+      "surname": "Buyer"
+    },
+    "email_address": "buyer@personal.example.com",
+    "payer_id": "FAKEPAYER0001",
+    "address": {
+      "country_code": "NL"
+    }
+  },
+  "links": [
+    {
+      "href": "https://api.sandbox.paypal.com/v2/checkout/orders/FAKEORDER00000001",
+      "rel": "self",
+      "method": "GET"
+    }
+  ]
+}

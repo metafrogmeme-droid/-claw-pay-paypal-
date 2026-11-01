@@ -9,3 +9,5 @@ coverage/
 contracts/out/
 contracts/cache/
 contracts/lib/
+# Local LLM spend log and hard-stop flag
+.claw-pay/
