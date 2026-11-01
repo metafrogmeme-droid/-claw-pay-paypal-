@@ -1,0 +1,25 @@
+{
+  "name": "@claw-pay/cli",
+  "version": "0.0.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "cp-keys": "./dist/bin/cp-keys.js",
+    "cp-demo-paypal": "./dist/bin/cp-demo-paypal.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json"
+  },
+  "dependencies": {
+    "@claw-pay/core": "workspace:*",
+    "@claw-pay/paypal": "workspace:*",
+    "viem": "2.57.13"
+  }
+}

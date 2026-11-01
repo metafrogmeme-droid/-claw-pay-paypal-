@@ -1,0 +1,21 @@
+{
+  "name": "@claw-pay/x402",
+  "version": "0.0.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "description": "Claw Pay x402 adapter: fail-closed parsers for x402 v2 PAYMENT-REQUIRED and v1 402 bodies.",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json"
+  },
+  "dependencies": {
+    "@claw-pay/core": "workspace:*",
+    "zod": "4.6.7"
+  }
+}

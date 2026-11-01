@@ -1,0 +1,21 @@
+{
+  "name": "@claw-pay/paypal",
+  "version": "0.0.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "description": "Claw Pay PayPal adapter: strict tool-call normaliser, sandbox guard, toolkit configuration.",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json"
+  },
+  "dependencies": {
+    "@claw-pay/core": "workspace:*",
+    "zod": "4.6.7"
+  }
+}

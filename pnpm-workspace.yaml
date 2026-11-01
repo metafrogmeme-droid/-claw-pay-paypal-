@@ -1,0 +1,11 @@
+packages:
+  - 'packages/*'
+  - 'apps/*'
+
+# Supply-chain hardening (see docs/DECISIONS.md D-015).
+# Wait 7 days (in minutes) before installing a newly published version.
+minimumReleaseAge: 10080
+# Transitive deps may only come from the registry (no git/tarball URLs).
+blockExoticSubdeps: true
+# Refuse a version whose publish trust level is lower than an earlier version's.
+trustPolicy: no-downgrade

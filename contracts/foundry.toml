@@ -1,0 +1,6 @@
+# Foundry project for ClawPayLedger and MockUSD (contracts land in M4).
+[profile.default]
+src = "src"
+test = "test"
+out = "out"
+libs = ["lib"]

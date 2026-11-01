@@ -1,0 +1,26 @@
+# Project Semgrep rules, run in CI next to the registry ruleset p/default.
+rules:
+  - id: claw-pay-no-math-random
+    message: Math.random() is not a crypto RNG. Use node:crypto (randomBytes) or viem's generatePrivateKey.
+    languages: [typescript, javascript]
+    severity: ERROR
+    pattern: Math.random()
+  - id: claw-pay-no-float-money
+    message: Money amounts are bigint atomic units, never floats. Use BigInt / a decimal parser.
+    languages: [typescript, javascript]
+    severity: ERROR
+    pattern-either:
+      - pattern: parseFloat(...)
+      - pattern: $X.toFixed(...)
+  - id: claw-pay-no-secret-in-log
+    message: Do not log values whose name says key, secret or token.
+    languages: [typescript, javascript]
+    severity: ERROR
+    patterns:
+      - pattern-either:
+          - pattern: console.$LOG(..., $V, ...)
+          - pattern: $IO.stdout(..., $V, ...)
+          - pattern: $IO.stderr(..., $V, ...)
+      - metavariable-regex:
+          metavariable: $V
+          regex: (?i)^[a-z0-9_.]*(private_?key|secret|access_?token|\bpk)$

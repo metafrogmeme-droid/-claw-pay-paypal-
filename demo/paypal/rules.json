@@ -1,0 +1,21 @@
+{
+  "_note": "Demo fixture. Sandbox only. Merchant id and email are fake placeholders; for a sandbox run put your own sandbox business account's merchant id here. seller-a dailyCap is 11.00 so that row 8 (4.50 on top of 6.00) reaches the confirm threshold before the seller cap.",
+  "rail": "paypal:sandbox",
+  "currency": "USD",
+  "sellers": [
+    {
+      "id": "seller-a",
+      "merchantId": "SELLERAMERCHANT01",
+      "email": "seller-a@business.example.com",
+      "maxAmount": "5.00",
+      "dailyCap": "11.00"
+    }
+  ],
+  "pinnedSeller": "seller-a",
+  "perCallCap": "5.00",
+  "dailyCap": "20.00",
+  "maxPaymentsPerDay": 20,
+  "confirmThreshold": "4.00",
+  "expiresInDays": 7,
+  "allowedActions": ["create_order", "pay_order", "get_order"]
+}

@@ -1,0 +1,28 @@
+# gitleaks config: the default rules plus Claw Pay rules. Self-tested by scripts/gitleaks-selftest.sh.
+title = "claw-pay"
+
+[extend]
+useDefault = true
+
+# A 32-byte hex private key assigned to a *KEY / *SECRET name (.env style, JSON, YAML, TS).
+# Bare 0x+64 hex is NOT flagged on purpose: tx hashes in docs/VERIFY.md look the same.
+[[rules]]
+id = "claw-pay-hex-private-key-assignment"
+description = "Hex private key assigned to a key or secret name"
+regex = '''(?i)[A-Z0-9_]*(?:KEY|SECRET)["']?\s*[:=]\s*["']?(?:0x)?[0-9a-f]{64}\b'''
+keywords = ["key", "secret"]
+
+# PayPal client secret or access token with any non-empty value.
+[[rules]]
+id = "paypal-credential-assignment"
+description = "PayPal client secret or access token assigned a value"
+regex = '''(?i)PAYPAL_(?:SANDBOX_)?(?:CLIENT_SECRET|ACCESS_TOKEN)["']?\s*[:=]\s*["']?[A-Za-z0-9_.\-]{8,}'''
+keywords = ["paypal_"]
+
+# PayPal OAuth access tokens start with "A21AA" (example token in github.com/paypal/ai-toolkit README,
+# commit 1401791a, "PAYPAL_SANDBOX_ACCESS_TOKEN": "A21AA…").
+[[rules]]
+id = "paypal-access-token"
+description = "PayPal OAuth access token"
+regex = '''\bA21AA[A-Za-z0-9_\-]{20,}'''
+keywords = ["a21aa"]

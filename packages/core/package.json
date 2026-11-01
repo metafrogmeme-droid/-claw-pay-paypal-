@@ -1,0 +1,17 @@
+{
+  "name": "@claw-pay/core",
+  "version": "0.0.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "description": "Claw Pay rule core: pure decide(), reason codes, decode(). No I/O.",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json"
+  }
+}
