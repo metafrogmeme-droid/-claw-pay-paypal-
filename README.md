@@ -12,6 +12,43 @@ The AI suggests and the rules decide. Verdicts are deterministic, with no model 
 
 **PayPal sandbox only.** Claw Pay never talks to live PayPal (see [Sandbox only](#sandbox-only) below).
 
+## How to test (judges)
+
+**1. Zero setup: no keys, no PayPal account, no network (about 2 minutes).** Needs Node 22.13+ and pnpm 10
+(`corepack enable`).
+
+```sh
+pnpm install --frozen-lockfile
+make check         # format, lint, types, 454 tests + coverage gate, copy-lint
+make demo-paypal   # 12 scripted agent calls against a mock PayPal
+```
+
+No `make`? Use `pnpm run check`, then `pnpm -r run build && node packages/cli/dist/bin/cp-demo-paypal.js`.
+You will see each call's verdict: small orders get `Allowed: within your limits`, an unlisted payee, a 6.00 USD
+order, a EUR order and the row 7 prompt-injected payee swap get `Blocked by your rule: …` (with zero PayPal calls),
+and a 4.50 USD order gets `Needs your OK: …`. The last line must be the `PAYPAL DEMO OK (…)` line shown in
+[Quick start](#quick-start-mock-mode-no-paypal-account-no-keys-no-network).
+
+**2. Real PayPal sandbox, with your own free sandbox app (about 3 steps).**
+
+1. PayPal Developer Dashboard → **Apps & Credentials** → **Sandbox** → **Create App** (Merchant). In **Testing
+   Tools → Sandbox Accounts**, note your sandbox Business merchant id and your sandbox Personal (buyer) login.
+2. In `.env` (copied from `.env.example`, git-ignored) set `PAYPAL_ENVIRONMENT=SANDBOX`, `PAYPAL_SANDBOX_CLIENT_ID`,
+   `PAYPAL_SANDBOX_CLIENT_SECRET` and `PAYPAL_SANDBOX_PAYEE_MERCHANT_ID`, then load it: `set -a; . ./.env; set +a`.
+3. Run `CP_SMOKE_WAIT_MINUTES=5 make sandbox-smoke`. It creates one 2.00 USD order (`create_order -> Allowed: within your
+   limits`) and prints a **Buyer step** link. Open it in a private window, log in as the sandbox **Personal** buyer and
+   approve. The gate re-checks the order (`APPROVED`, your payee, same amount) and sends one capture:
+   `pay_order -> Allowed: within your limits | order … | status COMPLETED`. Approved later? `make sandbox-resume ARGS="<order id> --amount 2.00"`.
+
+Without these variables the commands stop before any network call, for example
+`Needs your OK: set PAYPAL_SANDBOX_PAYEE_MERCHANT_ID (your sandbox business account merchant id).`
+
+**3. Optional: live LLM agent.** Off by default (`Blocked by your rule: LLM_AGENT_DISABLED`). Set
+`ENABLE_LLM_AGENT=yes` and `FLOVIA_API_KEY` (default provider), or `LLM_PROVIDER=anthropic` with
+`ANTHROPIC_API_KEY` (opt-in). Then `make agent` (mock PayPal), `make agent ARGS=--inject` (injected page text) or
+`make agent ARGS=--sandbox`. The model only proposes; the gate decides. Spend cap and hard stop:
+[`.env.example`](.env.example). CI and the mock demo make no LLM calls and use no secrets.
+
 ## Status
 
 Work in progress. What is in this repo today:
