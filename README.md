@@ -12,6 +12,8 @@ The AI suggests and the rules decide. Verdicts are deterministic, with no model 
 
 **PayPal sandbox only.** Claw Pay never talks to live PayPal (see [Sandbox only](#sandbox-only) below).
 
+**Hackathon page:** [devpost.com/software/claw-pay](https://devpost.com/software/claw-pay) · **Demo:** [youtu.be/7YqZqlEq_gA](https://youtu.be/7YqZqlEq_gA) · **Screenshots:** [docs/gallery](docs/gallery/)
+
 ## How to test (judges)
 
 **1. Zero setup: no keys, no PayPal account, no network (about 2 minutes).** Needs Node 22.13+ and pnpm 10
