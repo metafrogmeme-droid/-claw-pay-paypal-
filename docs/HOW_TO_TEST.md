@@ -1,0 +1,7 @@
+## How to test
+
+**No keys, about 2 minutes.** Clone https://github.com/metafrogmeme-droid/claw-pay-paypal (Node 22.13+, pnpm 10), then run `pnpm install --frozen-lockfile`, `make check` (454 tests, coverage gate) and `make demo-paypal`. Twelve scripted agent calls hit a mock PayPal: small orders get "Allowed: within your limits"; an unlisted payee, a 6.00 USD order, a EUR order and a prompt-injected payee swap get "Blocked by your rule: …" with zero PayPal calls; a 4.50 USD order gets "Needs your OK: …". The run ends with `PAYPAL DEMO OK (5 allowed, 6 blocked, 1 needed your OK, …)`.
+
+**Real PayPal sandbox, 3 steps, with your own free sandbox app.** (1) In the PayPal Developer Dashboard create a sandbox Merchant app and note your sandbox Business merchant id and Personal buyer login. (2) Set `PAYPAL_ENVIRONMENT=SANDBOX`, `PAYPAL_SANDBOX_CLIENT_ID`, `PAYPAL_SANDBOX_CLIENT_SECRET` and `PAYPAL_SANDBOX_PAYEE_MERCHANT_ID` in `.env` and load it. (3) Run `CP_SMOKE_WAIT_MINUTES=5 make sandbox-smoke`, open the printed buyer link, log in as the sandbox buyer and approve. The gate re-checks the order (APPROVED, your payee, same amount) and captures it once: `status COMPLETED`. Any other PayPal host is refused.
+
+**Optional live LLM agent.** Off by default. Set `ENABLE_LLM_AGENT=yes` plus `FLOVIA_API_KEY` (default) or `LLM_PROVIDER=anthropic` with `ANTHROPIC_API_KEY` (opt-in), then `make agent ARGS=--inject`. The model only proposes; the rules decide. CI makes no LLM or PayPal calls and uses no secrets.
